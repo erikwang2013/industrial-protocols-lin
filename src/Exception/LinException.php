@@ -6,7 +6,9 @@
 
 namespace Erikwang2013\IndustrialProtocols\Lin\Exception;
 
-class LinException extends \RuntimeException
+use Erikwang2013\IndustrialProtocols\Exception\ProtocolException;
+
+class LinException extends ProtocolException
 {
     public static function invalidFrameId(int $id): self
     {

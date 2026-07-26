@@ -36,7 +36,7 @@ class LinDriver implements DriverInterface
         stream_set_blocking($this->serial, true);
 
         // Configure serial port for LIN: 8N1, 19200 bps
-        exec(sprintf('stty -F %s %d cs8 -cstopb -parenb 2>/dev/null', escapeshellarg($this->device), $this->baudRate));
+        @exec(sprintf('stty -F %s %d cs8 -cstopb -parenb 2>/dev/null', escapeshellarg($this->device), $this->baudRate), result_code: $retval);
     }
 
     public function disconnect(): void
