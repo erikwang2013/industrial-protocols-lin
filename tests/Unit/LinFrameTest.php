@@ -99,4 +99,61 @@ class LinFrameTest extends TestCase
         $this->assertSame(0x50, $data['pid']);
         $this->assertSame([0x01, 0x02], $data['data']);
     }
+
+    public function testEnhancedChecksumRoundtrip(): void
+    {
+        $frame = new LinFrame(0x10, [0x01, 0x02, 0x03], LinFrame::ENHANCED_CHECKSUM);
+        $decoded = LinFrame::fromBytes($frame->toBytes());
+        $this->assertSame(0x10, $decoded->getId());
+        $this->assertSame([0x01, 0x02, 0x03], $decoded->getRawData());
+        $this->assertSame(LinFrame::ENHANCED_CHECKSUM, $decoded->getChecksumType());
+    }
+
+    public function testChecksumEmptyData(): void
+    {
+        $this->assertSame(0xFF, LinFrame::classicChecksum([]));
+    }
+
+    public function testChecksumCarryHandling(): void
+    {
+        // 0xFF + 0x01 = 256 -> folded to 1, checksum = 255 - 1 = 254
+        $this->assertSame(0xFE, LinFrame::classicChecksum([0xFF, 0x01]));
+    }
+
+    public function testSyncField(): void
+    {
+        $this->assertSame(0x55, LinFrame::syncField());
+    }
+
+    public function testChecksumMismatchThrows(): void
+    {
+        $bytes = (new LinFrame(0x10, [0x01]))->toBytes();
+        $bytes[strlen($bytes) - 1] = chr(ord($bytes[strlen($bytes) - 1]) ^ 0xFF);
+        $this->expectException(\Erikwang2013\IndustrialProtocols\Lin\Exception\LinException::class);
+        LinFrame::fromBytes($bytes);
+    }
+
+    public function testFrameTooShortThrows(): void
+    {
+        $this->expectException(\Erikwang2013\IndustrialProtocols\Lin\Exception\LinException::class);
+        LinFrame::fromBytes("\x50");
+    }
+
+    public function testMaxDataLength(): void
+    {
+        $frame = new LinFrame(0x3F, array_fill(0, 8, 0xFF));
+        $bytes = $frame->toBytes();
+        $this->assertSame(10, strlen($bytes)); // PID + 8 data + checksum
+        $decoded = LinFrame::fromBytes($bytes);
+        $this->assertSame(8, count($decoded->getRawData()));
+    }
+
+    public function testPidRoundTripAllIds(): void
+    {
+        for ($id = 0; $id <= LinFrame::MAX_ID; $id++) {
+            $pid = LinFrame::computePid($id);
+            $this->assertTrue(LinFrame::verifyPid($pid), "PID for ID $id failed parity");
+            $this->assertSame($id, LinFrame::pidToId($pid));
+        }
+    }
 }
